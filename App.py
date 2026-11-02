@@ -1,58 +1,33 @@
-import time
+import streamlit as st
 import requests
-from flask import Flask, jsonify, request
 from typing import Dict, List, Any, Optional
 
-app = Flask(__name__)
-
-# Simple in-memory cache to avoid burning API limits on repeated custom tab selections
-CACHE_TTL = 60  # seconds
-odds_cache = {}
+st.set_page_config(page_title="Custom Tab - Live Prop Odds", layout="wide")
 
 class LivePropOddsEngine:
     def __init__(self, api_key: str):
         self.api_key = api_key
         self.base_url = "https://api.the-odds-api.com/v4/sports"
 
-    def fetch_player_prop_odds(self, sport_key: str, event_id: str, market_type: str = "player_points") -> Optional[Dict[str, Any]]:
-        """Fetches live player prop odds from the provider API with caching."""
-        cache_key = f"{sport_key}_{event_id}_{market_type}"
-        current_time = time.time()
-
-        if cache_key in odds_cache:
-            cached_data, timestamp = odds_cache[cache_key]
-            if current_time - timestamp < CACHE_TTL:
-                print(f"[Cache Hit] Returning cached odds for {cache_key}")
-                return cached_data
-
-        url = f"{self.base_url}/{sport_key}/events/{event_id}/odds"
+    # Use Streamlit's built-in caching to prevent burning your API limit
+    @st.cache_data(ttl=60)
+    def fetch_player_prop_odds(_self, sport_key: str, event_id: str, market_type: str) -> Optional[Dict[str, Any]]:
+        url = f"{_self.base_url}/{sport_key}/events/{event_id}/odds"
         params = {
-            "apiKey": self.api_key,
+            "apiKey": _self.api_key,
             "regions": "us",
             "markets": market_type,
             "oddsFormat": "american"
         }
-
         try:
             response = requests.get(url, params=params)
             response.raise_for_status()
-            
-            data = response.json()
-            odds_cache[cache_key] = (data, current_time)
-            
-            remaining = response.headers.get("x-requests-remaining")
-            print(f"[API Info] Remaining API Requests: {remaining}")
-            
-            return data
+            return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"[Error] Failed to fetch live prop odds: {e}")
+            st.error(f"Failed to fetch live prop odds: {e}")
             return None
 
     def parse_and_find_best_prices(self, bookmakers: List[Dict[str, Any]], target_player_name: str, market_key: str) -> Dict[str, Any]:
-        """
-        Parses bookmaker payloads, extracts lines/prices for a target player,
-        and automatically identifies the best available odds for Over and Under.
-        """
         matched_lines = []
         best_over = {"price": -99999, "sportsbook": None, "point": None}
         best_under = {"price": -99999, "sportsbook": None, "point": None}
@@ -64,7 +39,7 @@ class LivePropOddsEngine:
             if market:
                 player_outcomes = [
                     outcome for outcome in market.get("outcomes", [])
-                    if outcome.get("description") == target_player_name
+                    if outcome.get("description") and target_player_name.lower() in outcome.get("description").lower()
                 ]
                 
                 if player_outcomes:
@@ -75,9 +50,8 @@ class LivePropOddsEngine:
                         "outcomes": player_outcomes
                     })
 
-                    # Evaluate best price/line shopping
                     for outcome in player_outcomes:
-                        name = outcome.get("name", "").lower() # 'Over' or 'Under'
+                        name = outcome.get("name", "").lower()
                         price = outcome.get("price")
                         point = outcome.get("point")
 
@@ -96,42 +70,64 @@ class LivePropOddsEngine:
             }
         }
 
-    def handle_custom_tab_selection(self, sport_key: str, event_id: str, player_name: str, market_type: str) -> Dict[str, Any]:
-        raw_data = self.fetch_player_prop_odds(sport_key, event_id, market_type)
-        
-        if not raw_data or "bookmakers" not in raw_data:
-            return {"status": "error", "message": "No live odds data available for this fixture."}
-
-        parsed_results = self.parse_and_find_best_prices(raw_data["bookmakers"], player_name, market_type)
-
-        return {
-            "status": "success",
-            "player": player_name,
-            "market": market_type,
-            "fixture_id": event_id,
-            "live_lines": parsed_results["all_sportsbook_lines"],
-            "best_value": parsed_results["best_odds"]
-        }
-
-# Initialize engine (Replace with environment variable or your actual key in production)
-prop_engine = LivePropOddsEngine(api_key="YOUR_API_KEY_HERE")
-
 # ==========================================
-# Flask API Endpoint for the Custom Tab UI
+# Streamlit UI Layout
 # ==========================================
-@app.route("/api/custom-tab/player-odds", methods=["GET"])
-def get_custom_player_odds():
-    sport_key = request.args.get("sport", "basketball_nba")
-    event_id = request.args.get("eventId")
-    player_name = request.args.get("player")
-    market_type = request.args.get("market", "player_points")
+st.title("🏀 Custom Tab — Live Prop Odds")
+st.write("Select your game, player, and market to check real-time sportsbook lines and best value odds.")
 
-    if not event_id or not player_name:
-        return jsonify({"status": "error", "message": "Missing required parameters: eventId and player"}), 400
+# Sidebar Configuration
+api_key = st.sidebar.text_input("The Odds API Key", type="password", value="")
 
-    result = prop_engine.handle_custom_tab_selection(sport_key, event_id, player_name, market_type)
-    return jsonify(result)
+if not api_key:
+    st.warning("⚠️ Please enter your Odds API key in the sidebar to load live odds.")
+else:
+    engine = LivePropOddsEngine(api_key=api_key)
 
-if __name__ == "__main__":
-    print("Starting Live Prop Odds Backend for Custom Tab...")
-    app.run(debug=True, port=5000)
+    col1, col2 = st.columns(2)
+    with col1:
+        sport_key = st.selectbox("Sport", ["basketball_nba", "americanfootball_nfl", "icehockey_nhl"])
+        market_type = st.selectbox("Market", ["player_points", "player_rebounds", "player_assists", "player_pass_yds"])
+    with col2:
+        event_id = st.text_input("Event ID", value="2b9d3b5b63d902315228a47881ef1d65")
+        player_name = st.text_input("Player Name", value="LeBron James")
+
+    if st.button("Fetch Live Prop Odds", type="primary"):
+        with st.spinner("Fetching live odds from sportsbooks..."):
+            raw_data = engine.fetch_player_prop_odds(sport_key, event_id, market_type)
+
+            if raw_data and "bookmakers" in raw_data:
+                results = engine.parse_and_find_best_prices(raw_data["bookmakers"], player_name, market_type)
+                
+                st.success(f"Successfully loaded lines for {player_name}!")
+
+                # Display Best Value Section
+                st.subheader("🔥 Best Available Odds")
+                best_cols = st.columns(2)
+                best_odds = results["best_odds"]
+                
+                with best_cols[0]:
+                    if best_odds["over"]:
+                        bo = best_odds["over"]
+                        st.metric(label="Best Over Price", value=f"{bo['price']:+d}", delta=f"{bo['sportsbook']} ({bo['point']} pts)")
+                    else:
+                        st.info("No Over line found.")
+
+                with best_cols[1]:
+                    if best_odds["under"]:
+                        bu = best_odds["under"]
+                        st.metric(label="Best Under Price", value=f"{bu['price']:+d}", delta=f"{bu['sportsbook']} ({bu['point']} pts)")
+                    else:
+                        st.info("No Under line found.")
+
+                # Display All Sportsbook Lines
+                st.subheader("📊 All Sportsbook Lines")
+                if results["all_sportsbook_lines"]:
+                    for bookie in results["all_sportsbook_lines"]:
+                        with st.expander(f"{bookie['sportsbook']}"):
+                            for outcome in bookie["outcomes"]:
+                                st.write(f"**{outcome.get('name')}** | Line: {outcome.get('point')} | Odds: {outcome.get('price')}")
+                else:
+                    st.warning("No matching sportsbook lines found for this player in this event.")
+            else:
+                st.error("Could not fetch data. Verify your Event ID and ensure your API key is valid.")
