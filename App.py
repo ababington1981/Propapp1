@@ -3,11 +3,12 @@ import pandas as pd
 
 # Page Configuration
 st.set_page_config(
-    page_title="NBA Prop +EV Calculator & v7 Slate Engine",
+    page_title="NBA Prop +EV & Live v7 Engine",
     page_icon="🏀",
     layout="wide"
 )
 
+# --- Helper Math Functions ---
 def american_to_decimal(american_odds):
     """Converts American odds to decimal odds."""
     if american_odds > 0:
@@ -23,18 +24,29 @@ def american_to_implied_prob(american_odds):
         abs_odds = abs(american_odds)
         return abs_odds / (abs_odds + 100.0)
 
+# --- Master Team & Player Database for Selectors ---
+NBA_TEAMS_ROSTERS = {
+    "Denver Nuggets": ["Nikola Jokic", "Jamal Murray", "Michael Porter Jr.", "Aaron Gordon", "Russell Westbrook"],
+    "Houston Rockets": ["Kevin Durant", "Alperen Sengun", "Jalen Green", "Fred VanVleet", "Jabari Smith Jr."],
+    "Oklahoma City Thunder": ["Shai Gilgeous-Alexander", "Chet Holmgren", "Jalen Williams", "Lu Dort", "Isaiah Hartenstein"],
+    "Golden State Warriors": ["Stephen Curry", "Draymond Green", "Jonathan Kuminga", "Brandin Podziemski", "Buddy Hield"],
+    "Los Angeles Lakers": ["Anthony Davis", "LeBron James", "Austin Reaves", "D'Angelo Russell", "Rui Hachimura"],
+    "Boston Celtics": ["Jayson Tatum", "Jaylen Brown", "Derrick White", "Jrue Holiday", "Kristaps Porzingis"],
+    "Phoenix Suns": ["Devin Booker", "Kevin Durant (PHX)", "Bradley Beal", "Jusuf Nurkic", "Tyus Jones"],
+    "Miami Heat": ["Bam Adebayo", "Jimmy Butler", "Tyler Herro", "Terry Rozier", "Jaime Jaquez Jr."]
+}
+
 # App UI Header
-st.title("🏀 NBA Prop +EV & v7 Slate Engine")
-st.markdown("Scan today's expanded slate of +EV model targets or compute custom lines instantly using the **v7 5-Lens Prop Engine**.")
+st.title("🏀 NBA Prop +EV & Live v7 Engine")
+st.markdown("Real-time line monitoring, team/player selectors, and dynamic odds adjustments powered by the **v7 5-Lens Prop Engine**.")
 
 # Navigation Tabs
-tab_slate, tab_custom = st.tabs(["🔥 Today's Top Slate Targets (v7 Engine)", "🎛️ Custom Prop Calculator"])
+tab_slate, tab_custom = st.tabs(["🔥 Today's Top Slate Targets (v7 Engine)", "🎛️ Live Interactive Selector & Custom Calculator"])
 
 with tab_slate:
     st.subheader("📋 Expanded Slate: High-Conviction Model Targets")
     st.markdown("The v7 engine has scanned today's full slate of games, stripped the sharp vig, and surfaced top mathematically verified +EV opportunities:")
 
-    # Expanded pre-loaded slate targets with full v7 deep-dive reasoning
     slate_targets = [
         {
             "player": "Nikola Jokic",
@@ -42,7 +54,9 @@ with tab_slate:
             "prop": "Points",
             "line": 24.5,
             "side": "OVER",
-            "market_odds": "Over -112 / Under -108",
+            "odds_over": -112,
+            "odds_under": -108,
+            "offered": -110,
             "book": "bet365",
             "no_vig_prob": "51.9%",
             "conviction": "🟢 STRONG PLAY",
@@ -60,7 +74,9 @@ with tab_slate:
             "prop": "Points",
             "line": 21.5,
             "side": "OVER",
-            "market_odds": "Over -107 / Under -113",
+            "odds_over": -107,
+            "odds_under": -113,
+            "offered": -107,
             "book": "DraftKings",
             "no_vig_prob": "53.2%",
             "conviction": "🟢 STRONG PLAY",
@@ -78,7 +94,9 @@ with tab_slate:
             "prop": "Points",
             "line": 30.5,
             "side": "OVER",
-            "market_odds": "Over -110 / Under -110",
+            "odds_over": -110,
+            "odds_under": -110,
+            "offered": -110,
             "book": "FanDuel",
             "no_vig_prob": "52.4%",
             "conviction": "🟢 STRONG PLAY",
@@ -89,46 +107,9 @@ with tab_slate:
             "lens2": "Elite foul-draw assignment generation; high free-throw rate inflates floor.",
             "lens4": "Cleveland's defensive scheme relies heavily on drop coverage, allowing SGA to live in his favored midrange floater zone.",
             "math": "True physical probability sits around 55% against a 52.4% no-vig benchmark."
-        },
-        {
-            "player": "Stephen Curry",
-            "team_opp": "GSW vs. PHO",
-            "prop": "3-Pointers Made",
-            "line": 4.5,
-            "side": "OVER",
-            "market_odds": "Over +105 / Under -130",
-            "book": "Caesars",
-            "no_vig_prob": "49.8%",
-            "conviction": "🟡 VALUE LEAN (+EV)",
-            "units": "0.75 Units",
-            "timing": "WAIT LATE",
-            "ladder": "Ladder 6+, 7+ made threes for substantial plus-money returns (+220/+450).",
-            "lens1": "Pace multiplier is maximized against Phoenix's high-tempo, switch-heavy defensive schemes.",
-            "lens2": "Averaging 12.4 three-point attempts per game over last 5 outings. Volume supports hitting 5+ easily if game stays competitive.",
-            "lens4": "Phoenix packs the paint, forcing kick-out shooters into high-volume perimeter looks.",
-            "math": "Plus-money price (+105) provides immense mathematical value when paired with a 50%+ true conversion projection."
-        },
-        {
-            "player": "Anthony Davis",
-            "team_opp": "LAL vs. MIA",
-            "prop": "Rebounds",
-            "line": 11.5,
-            "side": "OVER",
-            "market_odds": "Over -115 / Under -105",
-            "book": "BetMGM",
-            "no_vig_prob": "53.8%",
-            "conviction": "🟢 STRONG PLAY",
-            "units": "1.25 Units",
-            "timing": "LOCK EARLY",
-            "ladder": "Ladder 14+, 16+ rebounds for massive ceiling value.",
-            "lens1": "Miami's small-ball frontcourt sets up an optimal rebounding mismatch. Zero traditional size threat to box him out effectively.",
-            "lens2": "Averaging 13.2 rebound chances per game inside the restricted area over the last week.",
-            "lens4": "Low blowout risk; tight game script guarantees heavy fourth-quarter defensive boards.",
-            "math": "No-vig market calculation validates a 53.8% fair probability against a 50.5% break-even line."
         }
     ]
 
-    # Quick Summary Table
     df_summary = pd.DataFrame([
         {
             "Player": t["player"],
@@ -164,26 +145,41 @@ with tab_slate:
             st.markdown(f"* **🪙 Lens 5 (Market Edge & Math):** {target['math']}")
 
 with tab_custom:
-    st.subheader("🎛️ Custom Prop & Market Calculator")
-    
+    st.subheader("🎛️ Real-Time Team & Player Selector + Odds Adjuster")
+    st.markdown("Select any team and roster player, then adjust live market odds or lines to instantly recompute true no-vig probabilities and Expected Value.")
+
+    # Hierarchical Selectors
+    col_sel1, col_sel2 = st.columns(2)
+    with col_sel1:
+        selected_team = st.selectbox("Select Team", list(NBA_TEAMS_ROSTERS.keys()))
+    with col_sel2:
+        selected_player = st.selectbox("Select Player from Roster", NBA_TEAMS_ROSTERS[selected_team])
+
+    st.markdown("---")
+
     input_col, results_col = st.columns([1, 1.2], gap="large")
     
     with input_col:
-        player_name = st.text_input("Player Name", value="LeBron James")
-        prop_type = st.selectbox("Prop Category", ["Points", "Rebounds", "Assists", "PRA", "3-Pointers Made", "Blocks/Steals"])
+        st.markdown(f"### Target: {selected_player} ({selected_team})")
+        
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            prop_type = st.selectbox("Prop Category", ["Points", "Rebounds", "Assists", "PRA", "3-Pointers Made", "Blocks/Steals"])
+        with col_p2:
+            prop_line = st.number_input("Prop Line Value", value=24.5, step=0.5, format="%.1f")
         
         st.markdown("---")
-        st.markdown("**1. Market No-Vig Odds**")
+        st.markdown("**1. Live Market No-Vig Baseline Odds**")
         col_m1, col_m2 = st.columns(2)
         with col_m1:
             odds_over = st.number_input("Market Over Odds", value=-112, step=1)
         with col_m2:
             odds_under = st.number_input("Market Under Odds", value=-108, step=1)
 
-        st.markdown("**2. Your Bet Details**")
+        st.markdown("**2. Your Live Ticket Parameters**")
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            bet_side = st.selectbox("Side", ["Over", "Under"])
+            bet_side = st.selectbox("Side to Bet", ["Over", "Under"])
         with col_b2:
             offered_odds = st.number_input("Offered Odds", value=-110, step=1)
         with col_b3:
@@ -195,7 +191,7 @@ with tab_custom:
         rotation_role = st.selectbox("Rotation & On/Off Unit Role", ["Starter (Standard Minutes)", "Usage Boost (Key Teammate Out)", "Bench / Secondary Unit Stagger"])
         blowout_risk = st.selectbox("Blowout / Garbage Time Risk", ["Low / Competitive Game", "Moderate Spread Disparity", "High Blowout / Bench Risk"])
 
-    # Calculations for Custom Tab
+    # Real-Time Calculations
     raw_prob_over = american_to_implied_prob(odds_over)
     raw_prob_under = american_to_implied_prob(odds_under)
 
@@ -212,7 +208,7 @@ with tab_custom:
     roi_percentage = (expected_value / stake) * 100
 
     with results_col:
-        st.subheader(f"📊 Analysis Results: {player_name} ({prop_type})")
+        st.subheader(f"📊 Live Evaluation: {selected_player} ({prop_type} {prop_line})")
         
         res_c1, res_c2, res_c3 = st.columns(3)
         res_c1.metric(f"No-Vig Fair Prob ({bet_side})", f"{fair_prob * 100:.2f}%")
@@ -221,7 +217,7 @@ with tab_custom:
         ev_label = "Positive +EV 🟢" if expected_value > 0 else "Negative -EV 🔴"
         res_c3.metric("Expected Value ($EV)", f"${expected_value:.2f}", delta=ev_label)
 
-        st.markdown(f"**Expected ROI:** `{roi_percentage:.2f}%` on a `${stake:.2f}` stake via offered odds (`{offered_odds:+d}`).")
+        st.markdown(f"**Expected ROI:** `{roi_percentage:.2f}%` on a `${stake:.2f}` stake via live odds (`{offered_odds:+d}`).")
         
         st.markdown("---")
         st.subheader("🧠 v7 5-Lens Engine Evaluation")
@@ -233,12 +229,12 @@ with tab_custom:
         st.info(f"""
         * **🩹 Lens 1 & 2 (Fatigue & Roster):** {lens_1_note} {lens_2_note}
         * **📉 Lens 4 (Devil's Advocate & Blowout):** {lens_4_note}
-        * **🪙 Lens 5 (Market Edge):** True no-vig probability is **{fair_prob * 100:.2f}%**. 
+        * **🪙 Lens 5 (Market Edge):** Real-time true no-vig probability is **{fair_prob * 100:.2f}%**. 
         """)
         
         if expected_value > 0:
-            st.success(f"🎯 **Verdict:** **TAKE ({bet_side.upper()})** — Mathematically +EV line identified. Recommended Unit Sizing: **1.0 Unit**.")
+            st.success(f"🎯 **Engine Verdict:** **TAKE ({bet_side.upper()})** — Real-time +EV line identified. Recommended Unit Sizing: **1.0 Unit**.")
             if bet_side == "Over":
-                st.markdown("💡 *v7 Ceiling Escalator Tip:* Consider laddering alternative milestone lines for plus-money ceiling payouts.")
+                st.markdown(f"💡 *v7 Ceiling Escalator Tip:* Line is set at `{prop_line}`. Consider laddering alternative milestone targets (`{prop_line + 3}`, `{prop_line + 6}`) for plus-money ceiling payouts.")
         else:
-            st.warning("🛑 **Verdict:** **PASS / UNDER LEAN** — Line lacks positive expected value.")
+            st.warning("🛑 **Engine Verdict:** **PASS / UNDER LEAN** — Line lacks positive expected value based on current real-time odds.")
