@@ -24,10 +24,10 @@ def american_to_implied_prob(american_odds):
         abs_odds = abs(american_odds)
         return abs_odds / (abs_odds + 100.0)
 
-# --- Master Team & Player Database for Selectors ---
+# --- Master Team & Player Database ---
 NBA_TEAMS_ROSTERS = {
     "Denver Nuggets": ["Nikola Jokic", "Jamal Murray", "Michael Porter Jr.", "Aaron Gordon", "Russell Westbrook"],
-    "Houston Rockets": ["Kevin Durant", "Alperen Sengun", "Jalen Green", "Fred VanVleet", "Jabari Smith Jr."],
+    "Houston Rockets": ["Alperen Sengun", "Kevin Durant", "Jalen Green", "Fred VanVleet", "Jabari Smith Jr."],
     "Oklahoma City Thunder": ["Shai Gilgeous-Alexander", "Chet Holmgren", "Jalen Williams", "Lu Dort", "Isaiah Hartenstein"],
     "Golden State Warriors": ["Stephen Curry", "Draymond Green", "Jonathan Kuminga", "Brandin Podziemski", "Buddy Hield"],
     "Los Angeles Lakers": ["Anthony Davis", "LeBron James", "Austin Reaves", "D'Angelo Russell", "Rui Hachimura"],
@@ -69,44 +69,24 @@ with tab_slate:
             "math": "Sharp market no-vig fair probability is 51.9% against a 50.0% break-even price (-112)."
         },
         {
-            "player": "Kevin Durant",
-            "team_opp": "HOU vs. BOS",
+            "player": "Alperen Sengun",
+            "team_opp": "HOU vs. SAS",
             "prop": "Points",
-            "line": 21.5,
+            "line": 24.5,
             "side": "OVER",
-            "odds_over": -107,
-            "odds_under": -113,
-            "offered": -107,
-            "book": "DraftKings",
-            "no_vig_prob": "53.2%",
-            "conviction": "🟢 STRONG PLAY",
-            "units": "1.0 Unit",
-            "timing": "WAIT FOR 60-MIN INACTIVES",
-            "ladder": "Ladder 25+ and 30+ points for aggressive ceiling exposure.",
-            "lens1": "Clean injury report. Minutes spike when game script remains tight.",
-            "lens2": "Averages 23.0 PPG in games decided by 10 points or less. Elite midrange isos exploit Boston's defensive coverage.",
-            "lens4": "Blowout risk minimized against a top-tier opponent like Boston, securing full rotation minutes.",
-            "math": "Reduced juice at -107 gives a true physical probability of ~57% against a 51.7% break-even line."
-        },
-        {
-            "player": "Shai Gilgeous-Alexander",
-            "team_opp": "OKC @ CLE",
-            "prop": "Points",
-            "line": 30.5,
-            "side": "OVER",
-            "odds_over": -110,
-            "odds_under": -110,
+            "odds_over": -112,
+            "odds_under": -108,
             "offered": -110,
-            "book": "FanDuel",
-            "no_vig_prob": "52.4%",
+            "book": "DraftKings",
+            "no_vig_prob": "51.9%",
             "conviction": "🟢 STRONG PLAY",
             "units": "1.0 Unit",
             "timing": "LOCK EARLY",
-            "ladder": "Ladder 33+, 35+ points for elite ceiling escalation.",
-            "lens1": "Elite pace-and-space matchup against Cleveland's perimeter defense. High usage floor locked at 35+ minutes.",
-            "lens2": "Elite foul-draw assignment generation; high free-throw rate inflates floor.",
-            "lens4": "Cleveland's defensive scheme relies heavily on drop coverage, allowing SGA to live in his favored midrange floater zone.",
-            "math": "True physical probability sits around 55% against a 52.4% no-vig benchmark."
+            "ladder": "Ladder 28+, 30+ points.",
+            "lens1": "High-usage post anchor with guaranteed 34+ minutes.",
+            "lens2": "Favorable interior matchup against soft rim protection.",
+            "lens4": "Low blowout risk.",
+            "math": "No-vig probability aligns with positive expected value."
         }
     ]
 
@@ -136,7 +116,7 @@ with tab_slate:
                 st.markdown(f"**Unit Sizing Guide:** `{target['units']}` | **Timing:** `{target['timing']}`")
             with c2:
                 st.markdown(f"**Ceiling Escalator / Ladder:** {target['ladder']}")
-                st.markdown(f"**Market Pricing:** `{target['market_odds'] if 'market_odds' in target else 'Over ' + str(target['odds_over']) + ' / Under ' + str(target['odds_under'])}`")
+                st.markdown(f"**Market Pricing:** `Over {target['odds_over']} / Under {target['odds_under']}`")
 
             st.markdown("---")
             st.markdown("**🧠 v7 Engine 5-Lens Evaluation:**")
@@ -146,14 +126,23 @@ with tab_slate:
 
 with tab_custom:
     st.subheader("🎛️ Real-Time Team & Player Selector + Odds Adjuster")
-    st.markdown("Select any team and roster player, then adjust live market odds or lines to instantly recompute true no-vig probabilities and Expected Value.")
+    st.markdown("Select any team and roster player below. The model will instantly update all calculations and metrics in real time.")
 
-    # Hierarchical Selectors
+    # Initialize session state for interactive controls if not present
+    if 'sel_team' not in st.session_state:
+        st.session_state.sel_team = "Houston Rockets"
+    if 'sel_player' not in st.session_state:
+        st.session_state.sel_player = "Alperen Sengun"
+
     col_sel1, col_sel2 = st.columns(2)
     with col_sel1:
-        selected_team = st.selectbox("Select Team", list(NBA_TEAMS_ROSTERS.keys()))
+        selected_team = st.selectbox("Select Team", list(NBA_TEAMS_ROSTERS.keys()), key='sel_team')
     with col_sel2:
-        selected_player = st.selectbox("Select Player from Roster", NBA_TEAMS_ROSTERS[selected_team])
+        # Dynamically filter roster based on team selection
+        available_players = NBA_TEAMS_ROSTERS.get(selected_team, ["Player 1"])
+        if st.session_state.sel_player not in available_players:
+            st.session_state.sel_player = available_players[0]
+        selected_player = st.selectbox("Select Player from Roster", available_players, key='sel_player')
 
     st.markdown("---")
 
@@ -164,34 +153,34 @@ with tab_custom:
         
         col_p1, col_p2 = st.columns(2)
         with col_p1:
-            prop_type = st.selectbox("Prop Category", ["Points", "Rebounds", "Assists", "PRA", "3-Pointers Made", "Blocks/Steals"])
+            prop_type = st.selectbox("Prop Category", ["Points", "Rebounds", "Assists", "PRA", "3-Pointers Made", "Blocks/Steals"], key="custom_prop_type")
         with col_p2:
-            prop_line = st.number_input("Prop Line Value", value=24.5, step=0.5, format="%.1f")
+            prop_line = st.number_input("Prop Line Value", value=24.5, step=0.5, format="%.1f", key="custom_prop_line")
         
         st.markdown("---")
         st.markdown("**1. Live Market No-Vig Baseline Odds**")
         col_m1, col_m2 = st.columns(2)
         with col_m1:
-            odds_over = st.number_input("Market Over Odds", value=-112, step=1)
+            odds_over = st.number_input("Market Over Odds", value=-112, step=1, key="custom_odds_over")
         with col_m2:
-            odds_under = st.number_input("Market Under Odds", value=-108, step=1)
+            odds_under = st.number_input("Market Under Odds", value=-108, step=1, key="custom_odds_under")
 
         st.markdown("**2. Your Live Ticket Parameters**")
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            bet_side = st.selectbox("Side to Bet", ["Over", "Under"])
+            bet_side = st.selectbox("Side to Bet", ["Over", "Under"], key="custom_bet_side")
         with col_b2:
-            offered_odds = st.number_input("Offered Odds", value=-110, step=1)
+            offered_odds = st.number_input("Offered Odds", value=-110, step=1, key="custom_offered_odds")
         with col_b3:
-            stake = st.number_input("Stake ($)", value=100.0, step=10.0, min_value=1.0)
+            stake = st.number_input("Stake ($)", value=100.0, step=10.0, min_value=1.0, key="custom_stake")
 
         st.markdown("---")
         st.subheader("🔍 v7 Engine Contextual Checkpoints")
-        fatigue_factor = st.selectbox("Schedule / Fatigue Split", ["Normal Rest (2+ days)", "Standard B2B (Back-to-Back)", "3-in-4 / 4-in-5 Heavy Fatigue"])
-        rotation_role = st.selectbox("Rotation & On/Off Unit Role", ["Starter (Standard Minutes)", "Usage Boost (Key Teammate Out)", "Bench / Secondary Unit Stagger"])
-        blowout_risk = st.selectbox("Blowout / Garbage Time Risk", ["Low / Competitive Game", "Moderate Spread Disparity", "High Blowout / Bench Risk"])
+        fatigue_factor = st.selectbox("Schedule / Fatigue Split", ["Normal Rest (2+ days)", "Standard B2B (Back-to-Back)", "3-in-4 / 4-in-5 Heavy Fatigue"], key="custom_fatigue")
+        rotation_role = st.selectbox("Rotation & On/Off Unit Role", ["Starter (Standard Minutes)", "Usage Boost (Key Teammate Out)", "Bench / Secondary Unit Stagger"], key="custom_rotation")
+        blowout_risk = st.selectbox("Blowout / Garbage Time Risk", ["Low / Competitive Game", "Moderate Spread Disparity", "High Blowout / Bench Risk"], key="custom_blowout")
 
-    # Real-Time Calculations
+    # Real-Time Calculations (recomputed instantly on every widget interaction)
     raw_prob_over = american_to_implied_prob(odds_over)
     raw_prob_under = american_to_implied_prob(odds_under)
 
@@ -229,12 +218,12 @@ with tab_custom:
         st.info(f"""
         * **🩹 Lens 1 & 2 (Fatigue & Roster):** {lens_1_note} {lens_2_note}
         * **📉 Lens 4 (Devil's Advocate & Blowout):** {lens_4_note}
-        * **🪙 Lens 5 (Market Edge):** Real-time true no-vig probability is **{fair_prob * 100:.2f}%**. 
+        * **🪙 Lens 5 (Market Edge):** Real-time true no-vig probability for **{selected_player}** is **{fair_prob * 100:.2f}%**. 
         """)
         
         if expected_value > 0:
-            st.success(f"🎯 **Engine Verdict:** **TAKE ({bet_side.upper()})** — Real-time +EV line identified. Recommended Unit Sizing: **1.0 Unit**.")
+            st.success(f"🎯 **Engine Verdict:** **TAKE ({bet_side.upper()})** — Real-time +EV line identified for **{selected_player}**. Recommended Unit Sizing: **1.0 Unit**.")
             if bet_side == "Over":
                 st.markdown(f"💡 *v7 Ceiling Escalator Tip:* Line is set at `{prop_line}`. Consider laddering alternative milestone targets (`{prop_line + 3}`, `{prop_line + 6}`) for plus-money ceiling payouts.")
         else:
-            st.warning("🛑 **Engine Verdict:** **PASS / UNDER LEAN** — Line lacks positive expected value based on current real-time odds.")
+            st.warning(f"🛑 **Engine Verdict:** **PASS / UNDER LEAN** — Line lacks positive expected value for **{selected_player}** based on current real-time odds.")
