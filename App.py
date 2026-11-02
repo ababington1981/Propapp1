@@ -136,7 +136,7 @@ with tab_slate:
                 st.markdown(f"**Unit Sizing Guide:** `{target['units']}` | **Timing:** `{target['timing']}`")
             with c2:
                 st.markdown(f"**Ceiling Escalator / Ladder:** {target['ladder']}")
-                st.markdown(f"**Market Pricing:** `{target['market_odds']}`")
+                st.markdown(f"**Market Pricing:** `{target['market_odds'] if 'market_odds' in target else 'Over ' + str(target['odds_over']) + ' / Under ' + str(target['odds_under'])}`")
 
             st.markdown("---")
             st.markdown("**🧠 v7 Engine 5-Lens Evaluation:**")
